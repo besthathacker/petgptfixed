@@ -20,15 +20,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake build-essential
 
-      # 3. Clone llama.cpp and build
+      # 3. Clone llama.cpp and build with CURL support
       - name: Clone and Build llama.cpp
         run: |
           git clone https://github.com/ggerganov/llama.cpp.git
           cd llama.cpp
           mkdir build && cd build
-          cmake ..
+          cmake .. -DLLAMA_CURL=ON
           cmake --build . --config Release -j$(nproc)
-          -DLLAMA_CURL=ON
 
       # 4. Create GitHub Release & Upload Binary
       - name: Create GitHub Release
