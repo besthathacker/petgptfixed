@@ -18,7 +18,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake build-essential libcurl4-openssl-dev
+          sudo apt-get install -y cmake build-essential libcurl4-openssl-dev zip
 
       # 3. Clone and build llama.cpp
       - name: Clone and Build llama.cpp
@@ -29,11 +29,13 @@ jobs:
           cmake .. -DLLAMA_CURL=ON
           cmake --build . --config Release -j$(nproc)
 
-      # 4. Verify the build
-      - name: Debug Paths
-        run: ls -R llama.cpp/build
+      # 4. Package the binary into a zip
+      - name: Package Binary
+        run: |
+          cd llama.cpp/build/bin
+          zip -r llama-binary.zip main
 
-      # 5. Create a new release with unique tag
+      # 5. Create a new release with the zip
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
@@ -42,6 +44,6 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            llama.cpp/build/bin/main
+            llama.cpp/build/bin/llama-binary.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
