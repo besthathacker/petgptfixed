@@ -28,6 +28,7 @@ jobs:
           mkdir build && cd build
           cmake ..
           cmake --build . --config Release -j$(nproc)
+          -DLLAMA_CURL=ON
 
       # 4. Create GitHub Release & Upload Binary
       - name: Create GitHub Release
