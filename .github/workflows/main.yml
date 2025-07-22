@@ -1,4 +1,4 @@
-name: Build llama.cpp
+name: Build llama.cpp with LLaMA 3.1 70B GGUF and Push to Backend
 
 on:
   workflow_dispatch:
@@ -12,18 +12,17 @@ jobs:
 
     steps:
       # 1. Checkout this repository
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       # 2. Install dependencies
-      - name: Install Dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake wget unzip git-lfs libcurl4-openssl-dev
+          pip install huggingface_hub
 
-      # 3. Clone and compile llama.cpp using CMake
+      # 3. Build llama.cpp using CMake (disable CURL)
       - name: Build llama.cpp
         run: |
           rm -rf llama.cpp
@@ -31,25 +30,34 @@ jobs:
           cd llama.cpp
           mkdir build && cd build
           cmake .. -DLLAMA_CURL=OFF
-          cmake --build . --config Release -j $(nproc)
+          cmake --build . --config Release -j$(nproc)
 
-      # 4. Download LLaMA 3 GGUF model
-      - name: Download LLaMA 3 GGUF
+      # 4. Download LLaMA 3.1 70B GGUF via huggingface-hub
+      - name: Download LLaMA 3.1 70B GGUF
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           mkdir -p llama.cpp/models
-          cd llama.cpp/models
-          echo "Downloading LLaMA 3 8B Q4_K_M GGUF model..."
-          wget --header="Authorization: Bearer ${{ secrets.HF_TOKEN }}" \
-            https://huggingface.co/TheBloke/LLaMA-3-8B-GGUF/resolve/main/llama-3-8b.Q4_K_M.gguf
+          huggingface-cli repo clone mav23/Llama-3.1-70B-Instruct-GGUF llama.cpp/models/llama3_70b --token "$HF_TOKEN"
+          mv llama.cpp/models/llama3_70b/*.gguf llama.cpp/models/
+          rm -rf llama.cpp/models/llama3_70b
 
-      # 5. Push the build to petgptfixed repo
-      - name: Push to petgptfixed
+      # 5. (Optional) Test the built binary locally
+      - name: Test llama.cpp build
         run: |
-          git clone https://x-access-token:${{ secrets.BACKEND_PAT }}@github.com/besthathacker/petgptfixed.git backend_repo
+          cd llama.cpp
+          ./build/bin/main -m models/*.gguf -p "Hello from LLaMA 3.1 70B!"
+
+      # 6. Push the build and model to your backend repo
+      - name: Push to petgptfixed
+        env:
+          BACKEND_PAT: ${{ secrets.BACKEND_PAT }}
+        run: |
+          git clone https://x-access-token:${BACKEND_PAT}@github.com/besthathacker/petgptfixed.git backend_repo
           rsync -av --delete llama.cpp/ backend_repo/llama.cpp/
           cd backend_repo
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add llama.cpp
-          git commit -m "Update llama.cpp build + LLaMA 3 GGUF model" || echo "No changes to commit"
+          git commit -m "Update llama.cpp build + LLaMA 3.1 70B GGUF model" || echo "No changes to commit"
           git push
