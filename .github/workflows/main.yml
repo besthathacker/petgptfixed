@@ -14,11 +14,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. Install build tools
+      # 2. Install build tools and CURL dev libs
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake build-essential
+          sudo apt-get install -y cmake build-essential libcurl4-openssl-dev
 
       # 3. Clone llama.cpp and build with CURL support
       - name: Clone and Build llama.cpp
