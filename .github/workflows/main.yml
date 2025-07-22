@@ -1,7 +1,7 @@
-name: Build llama.cpp 
+name: Build llama.cpp (Engine Only)
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:  # Manually trigger
 
 permissions:
   contents: write
@@ -11,8 +11,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout this repository
-      - name: Checkout repo
+      # 1. Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       # 2. Install dependencies
@@ -20,9 +20,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake wget unzip git-lfs libcurl4-openssl-dev
-          pip install huggingface_hub
 
-      # 3. Build llama.cpp using CMake (disable CURL)
+      # 3. Clone and build llama.cpp
       - name: Build llama.cpp
         run: |
           rm -rf llama.cpp
@@ -32,26 +31,9 @@ jobs:
           cmake .. -DLLAMA_CURL=OFF
           cmake --build . --config Release -j$(nproc)
 
-      # 4. Download LLaMA 3.1 70B GGUF model
-      - name: Download LLaMA 3.1 70B GGUF
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: |
-          mkdir -p llama.cpp/models
-          huggingface-cli download mav23/Llama-3.1-70B-Instruct-GGUF \
-            --token "$HF_TOKEN" \
-            --local-dir llama.cpp/models \
-            --include "*.gguf"
-
-      # 5. Test the binary with the model (optional)
-      - name: Test llama.cpp build
-        run: |
-          cd llama.cpp
-          ./build/bin/main -m models/*.gguf -p "Hello from Aiden!"
-
-      # 6. Upload artifact (llama.cpp + model)
-      - name: Upload llama.cpp + Model
+      # 4. Upload built llama.cpp as artifact
+      - name: Upload llama.cpp
         uses: actions/upload-artifact@v4
         with:
-          name: llama_cpp_with_llama3_70b
-          path: llama.cpp
+          name: llama_cpp_engine
+          path: llama.cpp/build
