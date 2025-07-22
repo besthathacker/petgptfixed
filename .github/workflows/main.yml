@@ -4,23 +4,20 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write  # Required to create and upload releases
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # 1. Checkout code
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. Install build tools and CURL dev libs
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake build-essential libcurl4-openssl-dev
 
-      # 3. Clone llama.cpp and build with CURL support
       - name: Clone and Build llama.cpp
         run: |
           git clone https://github.com/ggerganov/llama.cpp.git
@@ -29,14 +26,14 @@ jobs:
           cmake .. -DLLAMA_CURL=ON
           cmake --build . --config Release -j$(nproc)
 
-      # 4. Create GitHub Release & Upload Binary
+      - name: Debug Paths
+        run: ls -R llama.cpp/build || echo "Build folder not found!"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: llama-binary-v1
           name: "LLaMA Binary v1"
-          draft: false
-          prerelease: false
           files: |
             llama.cpp/build/bin/main
         env:
