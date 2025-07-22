@@ -1,7 +1,7 @@
-name: Build llama.cpp (Engine Only)
+name: Build llama.cpp with Phi-3 Mini (CURL Enabled)
 
 on:
-  workflow_dispatch:  # Manually trigger
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -21,19 +21,36 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential cmake wget unzip git-lfs libcurl4-openssl-dev
 
-      # 3. Clone and build llama.cpp
+      # 3. Clone and build llama.cpp with CURL enabled
       - name: Build llama.cpp
         run: |
           rm -rf llama.cpp
           git clone https://github.com/ggerganov/llama.cpp.git
           cd llama.cpp
           mkdir build && cd build
-          cmake .. -DLLAMA_CURL=OFF
+          cmake .. -DLLAMA_CURL=ON
           cmake --build . --config Release -j$(nproc)
 
-      # 4. Upload built llama.cpp as artifact
-      - name: Upload llama.cpp
+      # 4. Download Phi-3 Mini GGUF model (~2.8GB)
+      - name: Download Phi-3 Mini GGUF
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          mkdir -p llama.cpp/models
+          cd llama.cpp/models
+          wget --header="Authorization: Bearer $HF_TOKEN" \
+            -O Phi-3-mini-4k-instruct-Q4_K_M.gguf \
+            https://huggingface.co/bartowski/Phi-3-mini-4k-instruct-GGUF/resolve/main/Phi-3-mini-4k-instruct-Q4_K_M.gguf
+
+      # 5. Create ZIP for download
+      - name: Create ZIP
+        run: |
+          cd llama.cpp
+          zip -r ../llama_cpp_phi3_curl.zip .
+
+      # 6. Upload as artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: llama_cpp_engine
-          path: llama.cpp/build
+          name: llama_cpp_phi3_curl
+          path: llama_cpp_phi3_curl.zip
