@@ -10,14 +10,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # 1. Checkout code
       - name: Checkout
         uses: actions/checkout@v4
 
+      # 2. Install dependencies
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake build-essential libcurl4-openssl-dev
 
+      # 3. Clone and build llama.cpp
       - name: Clone and Build llama.cpp
         run: |
           git clone https://github.com/ggerganov/llama.cpp.git
@@ -26,14 +29,18 @@ jobs:
           cmake .. -DLLAMA_CURL=ON
           cmake --build . --config Release -j$(nproc)
 
+      # 4. Verify the build
       - name: Debug Paths
-        run: ls -R llama.cpp/build || echo "Build folder not found!"
+        run: ls -R llama.cpp/build
 
+      # 5. Create a new release with unique tag
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: llama-binary-v1
-          name: "LLaMA Binary v1"
+          tag_name: llama-binary-${{ github.run_number }}
+          name: "LLaMA Binary Build ${{ github.run_number }}"
+          draft: false
+          prerelease: false
           files: |
             llama.cpp/build/bin/main
         env:
