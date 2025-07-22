@@ -1,4 +1,4 @@
-name: Build llama.cpp with LLaMA 3.1 70B GGUF and Push to Backend
+name: Build llama.cpp 
 
 on:
   workflow_dispatch:
@@ -32,32 +32,26 @@ jobs:
           cmake .. -DLLAMA_CURL=OFF
           cmake --build . --config Release -j$(nproc)
 
-      # 4. Download LLaMA 3.1 70B GGUF via huggingface-hub
+      # 4. Download LLaMA 3.1 70B GGUF model
       - name: Download LLaMA 3.1 70B GGUF
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           mkdir -p llama.cpp/models
-          huggingface-cli repo clone mav23/Llama-3.1-70B-Instruct-GGUF llama.cpp/models/llama3_70b --token "$HF_TOKEN"
-          mv llama.cpp/models/llama3_70b/*.gguf llama.cpp/models/
-          rm -rf llama.cpp/models/llama3_70b
+          huggingface-cli download mav23/Llama-3.1-70B-Instruct-GGUF \
+            --token "$HF_TOKEN" \
+            --local-dir llama.cpp/models \
+            --include "*.gguf"
 
-      # 5. (Optional) Test the built binary locally
+      # 5. Test the binary with the model (optional)
       - name: Test llama.cpp build
         run: |
           cd llama.cpp
-          ./build/bin/main -m models/*.gguf -p "Hello from LLaMA 3.1 70B!"
+          ./build/bin/main -m models/*.gguf -p "Hello from Aiden!"
 
-      # 6. Push the build and model to your backend repo
-      - name: Push to petgptfixed
-        env:
-          BACKEND_PAT: ${{ secrets.BACKEND_PAT }}
-        run: |
-          git clone https://x-access-token:${BACKEND_PAT}@github.com/besthathacker/petgptfixed.git backend_repo
-          rsync -av --delete llama.cpp/ backend_repo/llama.cpp/
-          cd backend_repo
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add llama.cpp
-          git commit -m "Update llama.cpp build + LLaMA 3.1 70B GGUF model" || echo "No changes to commit"
-          git push
+      # 6. Upload artifact (llama.cpp + model)
+      - name: Upload llama.cpp + Model
+        uses: actions/upload-artifact@v4
+        with:
+          name: llama_cpp_with_llama3_70b
+          path: llama.cpp
