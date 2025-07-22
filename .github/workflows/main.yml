@@ -1,4 +1,4 @@
-name: Build llama.cpp with LLaMA 3 GGUF and Push to Repo
+name: Build llama.cpp
 
 on:
   workflow_dispatch:
@@ -11,38 +11,45 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout this repository
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      # 2. Install dependencies
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake wget unzip git-lfs
-          sudo apt-get install -y libcurl4-openssl-dev
+          sudo apt-get install -y build-essential cmake wget unzip git-lfs libcurl4-openssl-dev
 
-      # Fixed CMake build
+      # 3. Clone and compile llama.cpp using CMake
       - name: Build llama.cpp
         run: |
           rm -rf llama.cpp
           git clone https://github.com/ggerganov/llama.cpp.git
           cd llama.cpp
           mkdir build && cd build
-          cmake ..
+          cmake .. -DLLAMA_CURL=OFF
           cmake --build . --config Release -j $(nproc)
 
+      # 4. Download LLaMA 3 GGUF model
       - name: Download LLaMA 3 GGUF
         run: |
           mkdir -p llama.cpp/models
           cd llama.cpp/models
           echo "Downloading LLaMA 3 8B Q4_K_M GGUF model..."
-          wget https://huggingface.co/TheBloke/LLaMA-3-8B-GGUF/resolve/main/llama-3-8b.Q4_K_M.gguf
+          wget --header="Authorization: Bearer ${{ secrets.HF_TOKEN }}" \
+            https://huggingface.co/TheBloke/LLaMA-3-8B-GGUF/resolve/main/llama-3-8b.Q4_K_M.gguf
 
-      - name: Commit and Push llama.cpp + Model
+      # 5. Push the build to petgptfixed repo
+      - name: Push to petgptfixed
         run: |
+          git clone https://x-access-token:${{ secrets.BACKEND_PAT }}@github.com/besthathacker/petgptfixed.git backend_repo
+          rsync -av --delete llama.cpp/ backend_repo/llama.cpp/
+          cd backend_repo
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add llama.cpp
-          git commit -m "Add CMake build of llama.cpp and LLaMA 3 GGUF model" || echo "No changes to commit"
+          git commit -m "Update llama.cpp build + LLaMA 3 GGUF model" || echo "No changes to commit"
           git push
