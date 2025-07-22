@@ -1,0 +1,50 @@
+name: Build llama.cpp with LLaMA 3 GGUF and Push to Repo
+
+on:
+  workflow_dispatch:  # Manual trigger
+
+permissions:
+  contents: write   # Allow GitHub Actions to push changes to the repo
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout the repository with write permissions
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # 2. Install dependencies
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake wget unzip git-lfs
+
+      # 3. Clone and compile llama.cpp
+      - name: Build llama.cpp
+        run: |
+          rm -rf llama.cpp
+          git clone https://github.com/ggerganov/llama.cpp.git
+          cd llama.cpp
+          make -j$(nproc)
+
+      # 4. Download LLaMA 3 GGUF model
+      - name: Download LLaMA 3 GGUF
+        run: |
+          mkdir -p llama.cpp/models
+          cd llama.cpp/models
+          echo "Downloading LLaMA 3 8B Q4_K_M GGUF model..."
+          wget https://huggingface.co/TheBloke/LLaMA-3-8B-GGUF/resolve/main/llama-3-8b.Q4_K_M.gguf
+
+      # 5. Commit and push the changes
+      - name: Commit and Push llama.cpp + Model
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add llama.cpp
+          git commit -m "Add llama.cpp build and LLaMA 3 GGUF model" || echo "No changes to commit"
+          git push
